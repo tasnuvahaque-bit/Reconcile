@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paysafe Invoice Parser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26; --border: #2a2a3d;
+    --accent: #6c63ff; --accent2: #ff6584; --accent3: #43e97b;
+    --text: #e8e8f0; --text-muted: #6b6b8a; --success: #43e97b; --error: #ff6584;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+
+  header { margin-bottom: 32px; }
+  .logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px, 5vw, 42px);
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--surface);
+    transition: all 0.3s ease;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(108,99,255,0.2); }
+
+  .upload-icon { font-size: 48px; margin-bottom: 16px; display: block; filter: grayscale(0.3); }
+  .upload-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+  .upload-sub { color: var(--text-muted); font-size: 12px; }
+
+  .file-list { margin-top: 24px; display: flex; flex-direction: column; gap: 8px; }
+  .file-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; font-size: 12px;
+  }
+  .file-name { flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .file-status { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 500; }
+  .file-status.pending { background: rgba(107,107,138,0.2); color: var(--text-muted); }
+  .file-status.processing { background: rgba(108,99,255,0.2); color: var(--accent); }
+  .file-status.done { background: rgba(67,233,123,0.15); color: var(--success); }
+  .file-status.error { background: rgba(255,101,132,0.15); color: var(--error); }
+
+  .actions { margin-top: 28px; display: flex; gap: 12px; }
+  .btn-process {
+    flex: 1; padding: 14px 32px;
+    background: linear-gradient(135deg, var(--accent), #8b85ff);
+    border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: #fff;
+    cursor: pointer;
+  }
+  .btn-clear { padding: 14px 20px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); cursor: pointer; }
+
+  .progress-bar-wrap { margin-top: 16px; height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; display: none; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 0%; transition: width 0.4s ease; }
+
+  .results-section { margin-top: 40px; display: none; }
+
+  .summary-bar {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+  }
+  .summary-item { display: flex; flex-direction: column; }
+  .summary-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .summary-value { font-size: 22px; font-weight: 700; font-family: 'Syne', sans-serif; }
+  .summary-currency { font-size: 13px; color: var(--text-muted); margin-left: 4px; }
+
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(42,42,61,0.5); }
+  thead tr { background: var(--surface2); }
+  th { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  .cell-account { font-weight: 500; color: var(--accent); }
+  .cell-currency { color: var(--text-muted); font-size: 11px; }
+  .settlement-positive { color: var(--success); font-weight: 600; }
+  .settlement-negative { color: var(--error); font-weight: 600; }
+
+  .btn-download {
+    margin-top: 20px; padding: 14px 28px;
+    background: linear-gradient(135deg, var(--accent3), #38d167);
+    border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: #0a0a0f;
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+  }
+
+  .log { margin-top: 16px; font-size: 11px; color: var(--text-muted); display: none; max-height: 120px; overflow-y: auto; }
+  .log-line.ok { color: var(--success); }
+  .log-line.err { color: var(--error); }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+  .result-count { font-size: 12px; color: var(--text-muted); }
+
+  .upload-btn {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 10px 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .upload-btn:hover { border-color: var(--accent); }
+
+  #fileInput { display: none; }
+  .remove-btn {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 16px; cursor: pointer; padding: 0 4px;
+  }
+  .remove-btn:hover { color: var(--error); }
+  .file-icon { font-size: 14px; }
+  .file-size { color: var(--text-muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo-row">
+      <div class="logo-icon">📄</div>
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;">Paysafe</span>
+    </div>
+    <h1>Invoice Parser</h1>
+    <p class="subtitle">100% local • No API key • Works offline</p>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <span class="upload-icon">📂</span>
+    <div class="upload-title">Drop your Paysafe PDF invoices here</div>
+    <div class="upload-sub">Supports multiple files • Completely private</div>
+    <div class="upload-btn" onclick="document.getElementById('fileInput').click()">Browse Files</div>
+    <input type="file" id="fileInput" multiple accept=".pdf">
+  </div>
+
+  <div class="file-list" id="fileList"></div>
+
+  <div class="actions" id="actions" style="display:none;">
+    <button class="btn-process" id="processBtn" onclick="processAll()">⚡ Extract & Parse All Invoices</button>
+    <button class="btn-clear" onclick="clearAll()">Clear</button>
+  </div>
+
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <div class="results-section" id="resultsSection">
+    <div class="section-header">
+      <div class="section-title">Extracted Data</div>
+      <div class="result-count" id="resultCount">0 invoices</div>
+    </div>
+
+    <div class="summary-bar" id="summaryBar" style="display:none;">
+      <div class="summary-item"><div class="summary-label">Processed Invoices</div><div class="summary-value" id="processedCount">0</div></div>
+      <div class="summary-item"><div class="summary-label">Total Settlement USD</div><div><span class="summary-value" id="totalUSD">0.00</span><span class="summary-currency">USD</span></div></div>
+      <div class="summary-item"><div class="summary-label">Total Settlement GBP</div><div><span class="summary-value" id="totalGBP">0.00</span><span class="summary-currency">GBP</span></div></div>
+      <div class="summary-item"><div class="summary-label">Total Settlement EUR</div><div><span class="summary-value" id="totalEUR">0.00</span><span class="summary-currency">EUR</span></div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Account No.</th>
+            <th>Month / Year</th>
+            <th>Processing Currency</th>
+            <th>Net Sales Value (Converted)</th>
+            <th>Total Invoice Charge</th>
+            <th>Trans. Charges</th>
+            <th>Interchange*</th>
+            <th>Scheme Fees*</th>
+            <th>Account Chg</th>
+            <th>Gateway Chg</th>
+            <th>Ad Hoc Chg</th>
+            <th>Settlement Amount</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+    <button class="btn-download" onclick="exportExcel()">
+      <span>📊</span> Download Excel
+    </button>
+  </div>
+
+</div>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  let files = [];
+  let results = [];
+
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    addFiles([...e.dataTransfer.files].filter(f => f.type === 'application/pdf'));
+  });
+  document.getElementById('fileInput').addEventListener('change', e => {
+    addFiles([...e.target.files]);
+    e.target.value = '';
+  });
+
+  function addFiles(newFiles) {
+    newFiles.forEach(f => {
+      if (!files.find(x => x.name === f.name && x.size === f.size)) files.push(f);
+    });
+    renderFileList();
+  }
+
+  function renderFileList() {
+    const list = document.getElementById('fileList');
+    list.innerHTML = '';
+    files.forEach((f, i) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `
+        <span class="file-icon">📄</span>
+        <span class="file-name">${f.name}</span>
+        <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
+        <span class="file-status pending" id="status-${i}">Pending</span>
+        <button class="remove-btn" onclick="removeFile(${i})">×</button>
+      `;
+      list.appendChild(item);
+    });
+    document.getElementById('actions').style.display = files.length ? 'flex' : 'none';
+  }
+
+  function removeFile(i) {
+    files.splice(i, 1);
+    renderFileList();
+    if (!files.length) document.getElementById('resultsSection').style.display = 'none';
+  }
+
+  function clearAll() {
+    files = []; results = [];
+    renderFileList();
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('log').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'none';
+  }
+
+  function setStatus(i, type, text) {
+    const el = document.getElementById(`status-${i}`);
+    if (el) { el.className = `file-status ${type}`; el.textContent = text; }
+  }
+
+  function log(msg, type='') {
+    const logEl = document.getElementById('log');
+    logEl.style.display = 'block';
+    const line = document.createElement('div');
+    line.className = `log-line ${type}`;
+    line.textContent = `> ${msg}`;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  async function parsePaysafePDF(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      fullText += textContent.items.map(item => item.str).join(' ') + '\n\n';
+    }
+
+    const accountMatch = fullText.match(/account\s*(\d{8})/i);
+    const chargeMatch = fullText.match(/Total invoice charge this month is\s*([\d.,]+)\s*\((\w{3})\)/i);
+    const procMatch = fullText.match(/Processing Currency:\s*(\w{3})/i);
+    const monthMatch = fullText.match(/between the dates of .*?(\w+)\s+\d{1,2},?\s*(\d{4})/i);
+    const monthYear = monthMatch ? `${monthMatch[1]} ${monthMatch[2]}` : 'January 2025';
+
+    let netSalesConverted = 0;
+    const netSalesMatch = fullText.match(/Net Sales Value[\s\S]*?Total[\s\S]*?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\b/i);
+    if (netSalesMatch) netSalesConverted = parseFloat(netSalesMatch[1].replace(/,/g, ''));
+
+    const transactionMatch = fullText.match(/Transaction Charges\s*([\d.,]+)\s*\(\w{3}\)/i);
+    const interchangeMatch = fullText.match(/Interchange\*\s*([\d.,]+)\s*\(\w{3}\)/i);
+    const schemeMatch = fullText.match(/Scheme Fees\*\s*([\d.,]+)\s*\(\w{3}\)/i);
+    const accountChargesMatch = fullText.match(/Account charges\s*([\d.,]+)\s*\(\w{3}\)/i);
+    const gatewayMatch = fullText.match(/Gateway charge\s*([\d.,]+)\s*\(\w{3}\)/i);
+    const adHocMatch = fullText.match(/Ad hoc and adjustment charges\s*([\d.,]+)\s*\(\w{3}\)/i);
+
+    return {
+      accountNumber: accountMatch ? accountMatch[1] : '—',
+      monthYear: monthYear,
+      totalInvoiceCharge: chargeMatch ? parseFloat(chargeMatch[1].replace(/,/g, '')) : 0,
+      totalInvoiceCurrency: chargeMatch ? chargeMatch[2] : '—',
+      processingCurrency: procMatch ? procMatch[1] : '—',
+      netSalesValueConverted: netSalesConverted,
+      transactionCharges: transactionMatch ? parseFloat(transactionMatch[1].replace(/,/g, '')) : 0,
+      interchange: interchangeMatch ? parseFloat(interchangeMatch[1].replace(/,/g, '')) : 0,
+      schemeFees: schemeMatch ? parseFloat(schemeMatch[1].replace(/,/g, '')) : 0,
+      accountCharges: accountChargesMatch ? parseFloat(accountChargesMatch[1].replace(/,/g, '')) : 0,
+      gatewayCharge: gatewayMatch ? parseFloat(gatewayMatch[1].replace(/,/g, '')) : 0,
+      adHocCharges: adHocMatch ? parseFloat(adHocMatch[1].replace(/,/g, '')) : 0
+    };
+  }
+
+  async function processAll() {
+    if (!files.length) return;
+    results = [];
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('log').innerHTML = '';
+    document.getElementById('log').style.display = 'none';
+
+    const btn = document.getElementById('processBtn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Processing...';
+
+    const progressWrap = document.getElementById('progressWrap');
+    const progressFill = document.getElementById('progressFill');
+    progressWrap.style.display = 'block';
+    progressFill.style.width = '0%';
+
+    for (let i = 0; i < files.length; i++) {
+      setStatus(i, 'processing', 'Reading…');
+      log(`Processing: ${files[i].name}`);
+
+      try {
+        const data = await parsePaysafePDF(files[i]);
+        results.push({ ...data, fileName: files[i].name });
+        setStatus(i, 'done', '✓ Done');
+        log(`Extracted: ${files[i].name} → Account ${data.accountNumber}`, 'ok');
+      } catch (err) {
+        setStatus(i, 'error', '✗ Error');
+        log(`Error: ${files[i].name} — ${err.message}`, 'err');
+        results.push({ fileName: files[i].name, error: err.message });
+      }
+
+      progressFill.style.width = `${((i+1)/files.length)*100}%`;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Extract & Parse All Invoices';
+    renderResults();
+  }
+
+  function renderResults() {
+    const section = document.getElementById('resultsSection');
+    const body = document.getElementById('resultsBody');
+    const countEl = document.getElementById('resultCount');
+    body.innerHTML = '';
+
+    const good = results.filter(r => !r.error);
+    countEl.textContent = `${good.length} invoice${good.length !== 1 ? 's' : ''}`;
+
+    let totalUSD = 0, totalGBP = 0, totalEUR = 0;
+
+    results.forEach(r => {
+      if (r.error) return;
+      const settlement = (r.netSalesValueConverted || 0) - (r.totalInvoiceCharge || 0);
+      const cur = r.totalInvoiceCurrency || '';
+      if (cur === 'USD') totalUSD += settlement;
+      else if (cur === 'GBP') totalGBP += settlement;
+      else if (cur === 'EUR') totalEUR += settlement;
+    });
+
+    document.getElementById('processedCount').textContent = good.length;
+    document.getElementById('totalUSD').textContent = totalUSD.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('totalGBP').textContent = totalGBP.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('totalEUR').textContent = totalEUR.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('summaryBar').style.display = 'flex';
+
+    results.forEach((r, idx) => {
+      const tr = document.createElement('tr');
+      tr.style.animationDelay = `${idx * 0.05}s`;
+
+      if (r.error) {
+        tr.innerHTML = `<td colspan="12" style="color:var(--error);">⚠ ${r.fileName} — ${r.error}</td>`;
+      } else {
+        const settlement = (r.netSalesValueConverted || 0) - (r.totalInvoiceCharge || 0);
+        const settlClass = settlement >= 0 ? 'settlement-positive' : 'settlement-negative';
+        const cur = r.totalInvoiceCurrency || '';
+        const fmt = n => isNaN(n) ? '0.00' : Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+        tr.innerHTML = `
+          <td class="cell-account">${r.accountNumber}</td>
+          <td>${r.monthYear}</td>
+          <td><span class="cell-currency">${r.processingCurrency}</span></td>
+          <td>${fmt(r.netSalesValueConverted)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.totalInvoiceCharge)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.transactionCharges)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.interchange)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.schemeFees)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.accountCharges)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.gatewayCharge)} <span class="cell-currency">${cur}</span></td>
+          <td>${fmt(r.adHocCharges)} <span class="cell-currency">${cur}</span></td>
+          <td class="${settlClass}">${fmt(settlement)} <span class="cell-currency">${cur}</span></td>
+        `;
+      }
+      body.appendChild(tr);
+    });
+
+    section.style.display = 'block';
+  }
+
+  function exportExcel() {
+    const good = results.filter(r => !r.error);
+    const rows = [
+      ['Account Number','Month / Year','Processing Currency','Net Sales Value (Converted)','Currency',
+       'Total Invoice Charge','Transaction Charges','Interchange','Scheme Fees','Account Charges',
+       'Gateway Charge','Ad Hoc & Adjustment Charges','Settlement Amount']
+    ];
+
+    good.forEach(r => {
+      const settlement = (r.netSalesValueConverted || 0) - (r.totalInvoiceCharge || 0);
+      rows.push([
+        r.accountNumber, r.monthYear, r.processingCurrency, r.netSalesValueConverted, r.totalInvoiceCurrency,
+        r.totalInvoiceCharge, r.transactionCharges, r.interchange, r.schemeFees, r.accountCharges,
+        r.gatewayCharge, r.adHocCharges, settlement
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      {wch:16},{wch:14},{wch:18},{wch:26},{wch:12},
+      {wch:20},{wch:18},{wch:18},{wch:18},{wch:18},{wch:18},{wch:22},{wch:22}
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Paysafe Invoices');
+    const month = good[0]?.monthYear?.replace(' ', '_') || 'invoices';
+    XLSX.writeFile(wb, `Paysafe_${month}.xlsx`);
+  }
+</script>
+</body>
+</html>
