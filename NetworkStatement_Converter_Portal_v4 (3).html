@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network International PA Report Converter — GrowthNext FZC</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #252a35;
+    --accent: #00d4aa;
+    --accent2: #0099ff;
+    --danger: #ff4d6d;
+    --warn: #f59e0b;
+    --text: #e8ecf0;
+    --muted: #5a6475;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -40%; left: -20%;
+    width: 70%; height: 70%;
+    background: radial-gradient(ellipse, rgba(0,212,170,0.07) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .logo-tag {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.8;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .header-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(0,212,170,0.08);
+    border: 1px solid rgba(0,212,170,0.2);
+    border-radius: 100px;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+
+  /* ---- Feature pills ---- */
+  .features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.5s 0.08s ease both;
+  }
+
+  .pill {
+    padding: 5px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ---- Drop zone ---- */
+  .drop-zone {
+    position: relative;
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    padding: 52px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: var(--surface);
+    animation: fadeUp 0.5s 0.12s ease both;
+    overflow: hidden;
+  }
+
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 100%, rgba(0,212,170,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,212,170,0.04);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(0,212,170,0.1);
+  }
+
+  .drop-zone.drag-over { border-style: solid; }
+
+  .drop-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 18px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: transform 0.2s;
+  }
+
+  .drop-zone:hover .drop-icon { transform: scale(1.05) rotate(-3deg); }
+
+  .drop-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .drop-sub { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .drop-sub strong { color: var(--accent); font-weight: 500; }
+  #file-input { display: none; }
+
+  /* ---- File selected ---- */
+  .file-selected {
+    display: none;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-top: 14px;
+  }
+  .file-selected.show { display: flex; animation: fadeUp 0.3s ease both; }
+
+  .file-icon {
+    width: 40px; height: 40px;
+    background: rgba(255,77,109,0.12);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .remove-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 18px; padding: 4px;
+    transition: color 0.2s;
+  }
+  .remove-btn:hover { color: var(--danger); }
+
+  /* ---- Options ---- */
+  .options-panel {
+    display: none;
+    margin-top: 16px;
+    padding: 20px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .options-panel.show { display: block; animation: fadeUp 0.3s ease both; }
+
+  .options-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .options-grid { grid-template-columns: 1fr; } }
+
+  .option-item {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; padding: 10px 14px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); transition: border-color 0.2s;
+  }
+  .option-item:hover { border-color: var(--accent); }
+  .option-item input[type="checkbox"] { display: none; }
+
+  .checkbox-visual {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--border);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.2s;
+  }
+
+  .option-item input:checked + .checkbox-visual {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .option-item input:checked + .checkbox-visual::after {
+    content: '✓'; font-size: 11px; color: #0a0c10; font-weight: 700;
+  }
+  .option-label { font-size: 12px; line-height: 1.4; }
+
+  /* ---- Sheet tabs preview ---- */
+  .sheet-preview {
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .sheet-preview-title {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  .sheet-tabs-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sheet-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid;
+    font-size: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+  }
+
+  .sheet-tab.sales    { border-color: rgba(0,212,170,0.35); color: var(--accent); background: rgba(0,212,170,0.08); }
+  .sheet-tab.refunds  { border-color: rgba(245,158,11,0.35); color: var(--warn); background: rgba(245,158,11,0.08); }
+  .sheet-tab.summary { border-color: rgba(99,179,237,0.35); color: var(--accent2); background: rgba(99,179,237,0.08); }
+
+  .sheet-tab-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  /* ---- Convert button ---- */
+  .convert-btn {
+    display: block; width: 100%;
+    margin-top: 16px; padding: 18px;
+    background: var(--accent); color: #0a0c10;
+    border: none; border-radius: 12px;
+    font-family: 'Syne', sans-serif; font-size: 15px;
+    font-weight: 800; letter-spacing: 0.04em;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .convert-btn::before {
+    content: ''; position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.4s;
+  }
+  .convert-btn:hover::before { left: 100%; }
+  .convert-btn:hover { background: #00e8ba; transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,212,170,0.3); }
+  .convert-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* ---- Progress ---- */
+  .progress-section {
+    display: none;
+    margin-top: 16px; padding: 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .progress-section.show { display: block; animation: fadeUp 0.3s ease both; }
+
+  .progress-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 10px;
+  }
+  .progress-label { font-size: 12px; color: var(--text); }
+  .progress-pct { font-size: 12px; color: var(--accent); font-weight: 500; }
+
+  .progress-bar-track {
+    height: 4px; background: var(--surface2);
+    border-radius: 100px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 100px; width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  .progress-log {
+    margin-top: 14px;
+    display: flex; flex-direction: column; gap: 5px;
+    max-height: 130px; overflow-y: auto;
+  }
+  .log-entry {
+    font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .log-entry.done { color: var(--accent); }
+  .log-entry.active { color: var(--text); }
+  .log-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%; background: currentColor; flex-shrink: 0;
+  }
+  .log-entry.active .log-dot { animation: pulse 1s ease infinite; }
+
+  /* ---- Result ---- */
+  .result-panel {
+    display: none;
+    margin-top: 16px; padding: 26px;
+    background: rgba(0,212,170,0.05);
+    border: 1px solid rgba(0,212,170,0.25);
+    border-radius: 12px;
+  }
+  .result-panel.show { display: block; animation: fadeUp 0.4s ease both; }
+
+  .result-header {
+    display: flex; align-items: center;
+    gap: 14px; margin-bottom: 20px;
+  }
+  .result-icon {
+    width: 44px; height: 44px;
+    background: rgba(0,212,170,0.15); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px; font-weight: 700;
+  }
+  .result-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 18px;
+  }
+  @media (max-width: 560px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    padding: 14px 15px; background: var(--surface2);
+    border-radius: 10px; border: 1px solid var(--border);
+  }
+  .stat-val {
+    font-family: 'Syne', sans-serif; font-size: 20px;
+    font-weight: 800; line-height: 1; margin-bottom: 4px;
+  }
+  .stat-val.green { color: var(--accent); }
+  .stat-val.amber { color: var(--warn); }
+  .stat-val.red   { color: var(--danger); }
+  .stat-val.blue  { color: var(--accent2); }
+  .stat-label { font-size: 11px; color: var(--muted); }
+
+  /* Sheet breakdown */
+  .sheet-breakdown {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .sheet-breakdown-title {
+    font-size: 11px; color: var(--muted);
+    margin-bottom: 4px; letter-spacing: 0.05em;
+  }
+
+  .sheet-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 7px;
+    border: 1px solid;
+    font-size: 12px;
+  }
+  .sheet-row.sales    { border-color: rgba(0,212,170,0.2); background: rgba(0,212,170,0.05); }
+  .sheet-row.refunds  { border-color: rgba(245,158,11,0.2); background: rgba(245,158,11,0.05); }
+  .sheet-row.chargebacks { border-color: rgba(255,77,109,0.2); background: rgba(255,77,109,0.05); }
+  .sheet-row.summary  { border-color: rgba(99,179,237,0.2); background: rgba(99,179,237,0.05); }
+
+  .sheet-row-name {
+    display: flex; align-items: center; gap: 8px; font-weight: 500;
+  }
+  .sheet-row-name .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .sales .dot { background: var(--accent); }
+  .refunds .dot { background: var(--warn); }
+  .chargebacks .dot { background: var(--danger); }
+  .summary .dot { background: var(--accent2); }
+
+  .sheet-row-count { font-size: 11px; color: var(--muted); }
+
+  .download-btn {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; width: 100%; padding: 16px;
+    background: var(--accent); color: #0a0c10;
+    border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif; font-size: 14px;
+    font-weight: 800; letter-spacing: 0.04em;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .download-btn:hover { background: #00e8ba; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,212,170,0.3); }
+
+  .new-convert-btn {
+    display: block; width: 100%; margin-top: 10px; padding: 12px;
+    background: none; border: 1px solid var(--border); border-radius: 10px;
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .new-convert-btn:hover { border-color: var(--text); color: var(--text); }
+
+  /* ---- Error ---- */
+  .error-panel {
+    display: none;
+    margin-top: 16px; padding: 18px 22px;
+    background: rgba(255,77,109,0.06);
+    border: 1px solid rgba(255,77,109,0.25);
+    border-radius: 12px;
+    font-size: 12px; color: var(--danger); line-height: 1.6;
+  }
+  .error-panel.show { display: block; animation: fadeUp 0.3s ease both; }
+
+  /* ---- Divider & How it works ---- */
+  .divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 44px 0 30px;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .divider-text {
+    font-size: 11px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--muted);
+  }
+
+  .steps {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    animation: fadeUp 0.5s 0.25s ease both;
+  }
+  @media (max-width: 600px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+
+  .step {
+    padding: 16px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  .step-num {
+    font-family: 'Syne', sans-serif; font-size: 22px;
+    font-weight: 800; color: var(--border);
+    margin-bottom: 8px; line-height: 1;
+  }
+  .step-text { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .step-text strong { color: var(--text); font-weight: 500; }
+
+  /* ---- Animations ---- */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div>
+      <div class="logo-tag">GrowthNext FZC</div>
+      <h1>Network International<br>PA Report <span>Converter</span></h1>
+    </div>
+    <div class="header-badge">
+      <div class="badge-dot"></div>
+      Browser-only · No upload
+    </div>
+  </header>
+
+  <!-- Pills -->
+  <div class="features">
+    <span class="pill">📄 All pages → 1 file</span>
+    <span class="pill">🟢 Sales tab</span>
+    <span class="pill">🟡 Refunds tab</span>
+    <span class="pill">🔴 Chargebacks tab</span>
+    <span class="pill">🔵 Summary tab</span>
+    <span class="pill">🧹 Footers removed</span>
+    <span class="pill">🔒 100% private</span>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-icon">📑</div>
+    <div class="drop-title">Drop your Network Statement PDF</div>
+    <div class="drop-sub">
+      Drag & drop here or <strong>click to browse</strong><br>
+      Multi-page statements supported · Automatically sorted into 4 tabs
+    </div>
+    <input type="file" id="file-input" accept=".pdf">
+  </div>
+
+  <!-- File selected -->
+  <div class="file-selected" id="file-selected">
+    <div class="file-icon">📄</div>
+    <div class="file-info">
+      <div class="file-name" id="file-name">—</div>
+      <div class="file-size" id="file-size">—</div>
+    </div>
+    <button class="remove-btn" id="remove-btn" title="Remove">✕</button>
+  </div>
+
+  <!-- Options + tabs preview -->
+  <div class="options-panel" id="options-panel">
+    <div class="options-title">Conversion Options</div>
+    <div class="options-grid">
+      <label class="option-item">
+        <input type="checkbox" id="opt-header" checked>
+        <div class="checkbox-visual"></div>
+        <span class="option-label">Include company info header</span>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="opt-freeze" checked>
+        <div class="checkbox-visual"></div>
+        <span class="option-label">Freeze header row</span>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="opt-stripe" checked>
+        <div class="checkbox-visual"></div>
+        <span class="option-label">Alternating row colors</span>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="opt-separate-cb" checked>
+        <div class="checkbox-visual"></div>
+        <span class="option-label">Split DR/CR chargeback rows</span>
+      </label>
+    </div>
+
+    <!-- Sheet tabs preview -->
+    <div class="sheet-preview">
+      <div class="sheet-preview-title">Output Excel tabs:</div>
+      <div class="sheet-tabs-row">
+        <div class="sheet-tab sales"><div class="sheet-tab-dot"></div>Sales</div>
+        <div class="sheet-tab refunds"><div class="sheet-tab-dot"></div>Refunds</div>
+        <div class="sheet-tab chargebacks"><div class="sheet-tab-dot"></div>Chargebacks</div>
+        <div class="sheet-tab summary"><div class="sheet-tab-dot"></div>Summary</div>
+      </div>
+    </div>
+
+    <button class="convert-btn" id="convert-btn">Convert to Excel</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-section" id="progress-section">
+    <div class="progress-header">
+      <span class="progress-label" id="progress-label">Processing…</span>
+      <span class="progress-pct" id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+    <div class="progress-log" id="progress-log"></div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-panel" id="error-panel"></div>
+
+  <!-- Result -->
+  <div class="result-panel" id="result-panel">
+    <div class="result-header">
+      <div class="result-icon">✅</div>
+      <div>
+        <div class="result-title">Conversion Complete</div>
+        <div class="result-sub" id="result-sub">Ready to download</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val green" id="stat-sales">—</div>
+        <div class="stat-label">Sales rows</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val amber" id="stat-refunds">—</div>
+        <div class="stat-label">Refund rows</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val red" id="stat-chargebacks">—</div>
+        <div class="stat-label">Chargeback rows</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val blue" id="stat-pages">—</div>
+        <div class="stat-label">Pages merged</div>
+      </div>
+    </div>
+
+    <div class="sheet-breakdown">
+      <div class="sheet-breakdown-title">Excel file will contain:</div>
+      <div class="sheet-row sales">
+        <div class="sheet-row-name"><div class="dot"></div>Sales</div>
+        <div class="sheet-row-count" id="bd-sales">—</div>
+      </div>
+      <div class="sheet-row refunds">
+        <div class="sheet-row-name"><div class="dot"></div>Refunds</div>
+        <div class="sheet-row-count" id="bd-refunds">—</div>
+      </div>
+      <div class="sheet-row chargebacks">
+        <div class="sheet-row-name"><div class="dot"></div>Chargebacks</div>
+        <div class="sheet-row-count" id="bd-chargebacks">—</div>
+      </div>
+      <div class="sheet-row summary">
+        <div class="sheet-row-name"><div class="dot"></div>Summary</div>
+        <div class="sheet-row-count" id="bd-summary">—</div>
+      </div>
+    </div>
+
+    <button class="download-btn" id="download-btn">
+      <span>⬇</span> Download Excel File
+    </button>
+    <button class="new-convert-btn" id="new-convert-btn">
+      Convert another file →
+    </button>
+  </div>
+
+  <!-- How it works -->
+  <div class="divider"><span class="divider-text">How it works</span></div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-text"><strong>Drop PDF</strong><br>Upload your Network International statement</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-text"><strong>Auto-parse</strong><br>All pages read, footers & headers stripped</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-text"><strong>Sort & split</strong><br>Sales, Refunds and Chargebacks separated</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-text"><strong>Download</strong><br>One formatted .xlsx with 4 tabs, ready to use</div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let selectedFile = null;
+let workbookBlob = null;
+let outputFilename = 'transactions.xlsx';
+
+// DOM refs
+const dropZone      = document.getElementById('drop-zone');
+const fileInput     = document.getElementById('file-input');
+const fileSelected  = document.getElementById('file-selected');
+const fileNameEl    = document.getElementById('file-name');
+const fileSizeEl    = document.getElementById('file-size');
+const removeBtn     = document.getElementById('remove-btn');
+const optionsPanel  = document.getElementById('options-panel');
+const convertBtn    = document.getElementById('convert-btn');
+const progressSec   = document.getElementById('progress-section');
+const progressLabel = document.getElementById('progress-label');
+const progressPct   = document.getElementById('progress-pct');
+const progressBar   = document.getElementById('progress-bar');
+const progressLog   = document.getElementById('progress-log');
+const errorPanel    = document.getElementById('error-panel');
+const resultPanel   = document.getElementById('result-panel');
+const downloadBtn   = document.getElementById('download-btn');
+const newConvertBtn = document.getElementById('new-convert-btn');
+
+// ─── File handling ────────────────────────────────────────────
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') handleFile(f);
+  else showError('Please drop a PDF file.');
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+function handleFile(file) {
+  selectedFile = file;
+  fileNameEl.textContent = file.name;
+  fileSizeEl.textContent = fmtBytes(file.size);
+  fileSelected.classList.add('show');
+  optionsPanel.classList.add('show');
+  errorPanel.classList.remove('show');
+  resultPanel.classList.remove('show');
+  progressSec.classList.remove('show');
+  outputFilename = file.name.replace(/\.pdf$/i, '') + '_converted.xlsx';
+}
+
+removeBtn.addEventListener('click', reset);
+newConvertBtn.addEventListener('click', reset);
+
+function reset() {
+  selectedFile = null; workbookBlob = null;
+  fileSelected.classList.remove('show');
+  optionsPanel.classList.remove('show');
+  errorPanel.classList.remove('show');
+  resultPanel.classList.remove('show');
+  progressSec.classList.remove('show');
+  fileInput.value = '';
+  convertBtn.disabled = false;
+}
+
+// ─── Convert ─────────────────────────────────────────────────
+convertBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  convertBtn.disabled = true;
+  progressSec.classList.add('show');
+  progressLog.innerHTML = '';
+  resultPanel.classList.remove('show');
+  errorPanel.classList.remove('show');
+  try {
+    await processAndConvert();
+  } catch (err) {
+    showError('Conversion failed: ' + err.message);
+    console.error(err);
+    convertBtn.disabled = false;
+  }
+});
+
+async function processAndConvert() {
+  const optHeader = document.getElementById('opt-header').checked;
+  const optFreeze = document.getElementById('opt-freeze').checked;
+  const optStripe = document.getElementById('opt-stripe').checked;
+
+  setProgress(5, 'Reading PDF…');
+  addLog('Reading PDF file…', 'active');
+
+  const arrayBuffer = await selectedFile.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const totalPages = pdf.numPages;
+
+  addLog(`Found ${totalPages} page${totalPages > 1 ? 's' : ''}`, 'done');
+  setProgress(15, `Extracting ${totalPages} pages…`);
+
+  // Buckets
+  const salesRows        = [];
+  const refundRows       = [];
+  const chargebackRows   = [];
+  const summaryRows      = [];
+  let   companyInfo      = '';
+
+  const FOOTER_MARKERS = ['Page ', 'Contact Us', 'Network International', 'MerchantHD@network', 'Central Bank'];
+
+  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+    addLog(`Parsing page ${pageNum} of ${totalPages}…`, 'active');
+
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+
+    // Detect & fix doubled-character font encoding on any page
+    // e.g. "SSAALLEESS" → "SALES", "5599..9999" → "599.99"
+    const items = textContent.items;
+    const sample = items.map(i => i.str.trim()).filter(s => s.length >= 4 && s.length % 2 === 0);
+    const doubledCount = sample.filter(s => {
+      const half = s.slice(0, s.length / 2);
+      return half === s.slice(s.length / 2);
+    }).length;
+    const isDoubledPage = sample.length > 0 && (doubledCount / sample.length) >= 0.35;
+    if (isDoubledPage) {
+      addLog(`Page ${pageNum}: doubled-font detected — auto-correcting`, 'active');
+      items.forEach(item => {
+        const s = item.str;
+        if (s.length >= 2 && s.length % 2 === 0) {
+          const half = s.slice(0, s.length / 2);
+          if (half === s.slice(s.length / 2)) item.str = half;
+        }
+      });
+    }
+
+    const lines = groupIntoLines(items);
+
+    // Company info from page 1 only
+    if (pageNum === 1) {
+      const metaLines = [];
+      for (const line of lines) {
+        const t = lineText(line);
+        if (!t) continue;
+        if (isDataRow(t) || isColHeader(t)) break;
+        if (!isFooter(t)) metaLines.push(t);
+      }
+      companyInfo = metaLines.join('\n');
+    }
+
+    // Data rows & summary rows
+    for (const line of lines) {
+      // De-duplicate per-row doubled tokens before any text checks
+      const ddLine = dedupeLineItems(line);
+      const t = ddLine.map(i => i.str.trim()).filter(Boolean).join(' ');
+      if (!t || isFooter(t) || isColHeader(t)) continue;
+
+      // Summary lines: "GRAND TOTAL OF POS TRANSACTIONS : 02833" etc.
+      const sumMatch = parseSummaryLine(t);
+      if (sumMatch) { summaryRows.push(sumMatch); continue; }
+
+      if (!isDataRow(t)) continue;
+
+      const row = parseDataRow(ddLine, t);
+      if (!row || row.length < 10) continue;
+
+      // Fix doubled date separators e.g. "19//11" → "19/11"
+      if (row[0]) row[0] = row[0].replace(/\/\//g, '/');
+
+      const trxnType = (row[3] || '').trim().toUpperCase();
+
+      if (trxnType === 'SALES') {
+        salesRows.push(row);
+      } else if (trxnType === 'REFUNDS' || trxnType === 'REFUND') {
+        refundRows.push(row);
+      } else if (trxnType.startsWith('CHARGEBACK')) {
+        chargebackRows.push(row);
+      } else {
+        salesRows.push(row);
+      }
+    }
+
+    const pct = 15 + Math.round((pageNum / totalPages) * 55);
+    setProgress(pct, `Processed page ${pageNum}/${totalPages}`);
+    addLog(`Page ${pageNum} done`, 'done');
+  }
+
+  setProgress(73, 'Building Excel workbook…');
+  addLog('Creating 4-tab Excel file…', 'active');
+
+  const wb = XLSX.utils.book_new();
+  const COLS = ['DTOF TRN','TRMNL ID','CARD NUMBER','TRXN TYPE','ACQ_REF_NBR','AUTH CODE','TRAN AMT','MSF AMT','TXN FEE','VAT AMT','NET AMT','TRXN DESP'];
+
+  // Clean chargeback * cells
+  const cbRows = chargebackRows.map(r => {
+    const clean = [...r];
+    if (clean[1] === '*') clean[1] = '';
+    if (clean[2] === '*') clean[2] = '';
+    if (clean[11] === '*') clean[11] = '';
+    return clean;
+  });
+
+  buildSheet(wb, 'Sales',       salesRows,  COLS, companyInfo, optHeader, optFreeze, optStripe, 'sales');
+  buildSheet(wb, 'Refunds',     refundRows, COLS, companyInfo, optHeader, optFreeze, optStripe, 'refunds');
+  buildSheet(wb, 'Chargebacks', cbRows,     COLS, companyInfo, optHeader, optFreeze, optStripe, 'chargebacks');
+  buildSummarySheet(wb, summaryRows, companyInfo, optHeader);
+
+  setProgress(94, 'Finalizing…');
+  addLog(`Sales: ${salesRows.length} · Refunds: ${refundRows.length} · Chargebacks: ${cbRows.length} · Summary: ${summaryRows.length}`, 'done');
+
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
+  workbookBlob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  setProgress(100, 'Complete!');
+  addLog('Excel file ready ✓', 'done');
+
+  setTimeout(() => {
+    progressSec.classList.remove('show');
+
+    document.getElementById('stat-sales').textContent       = salesRows.length.toLocaleString();
+    document.getElementById('stat-refunds').textContent     = refundRows.length.toLocaleString();
+    document.getElementById('stat-chargebacks').textContent = cbRows.length.toLocaleString();
+    document.getElementById('stat-pages').textContent       = totalPages;
+
+    document.getElementById('bd-sales').textContent         = salesRows.length + ' rows';
+    document.getElementById('bd-refunds').textContent       = refundRows.length + ' rows';
+    document.getElementById('bd-chargebacks').textContent   = cbRows.length + ' rows';
+    document.getElementById('bd-summary').textContent       = summaryRows.length + ' lines';
+
+    document.getElementById('result-sub').textContent       = outputFilename;
+    resultPanel.classList.add('show');
+    convertBtn.disabled = false;
+  }, 500);
+}
+
+// ─── Build one sheet ──────────────────────────────────────────
+function buildSheet(wb, sheetName, rows, cols, companyInfo, optHeader, optFreeze, optStripe, type) {
+  const wsData = [];
+  let dataStartRow = 0;
+
+  // Header info row (only on Sales sheet to avoid duplication)
+  if (optHeader && companyInfo && type === 'sales') {
+    wsData.push([companyInfo]);
+    wsData.push(['']);
+    dataStartRow = 2;
+  }
+
+  // Column headers
+  wsData.push(cols);
+
+  // Data
+  for (const r of rows) wsData.push(r);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Merge company info
+  if (optHeader && companyInfo && type === 'sales') {
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+  }
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 9 }, { wch: 11 }, { wch: 17 }, { wch: 14 }, { wch: 27 },
+    { wch: 10 }, { wch: 11 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 11 }, { wch: 13 }
+  ];
+
+  // Row heights
+  ws['!rows'] = [];
+  if (optHeader && companyInfo && type === 'sales') {
+    ws['!rows'][0] = { hpx: 80 };
+  }
+  ws['!rows'][dataStartRow] = { hpx: 28 };
+
+  // Freeze
+  if (optFreeze) {
+    ws['!freeze'] = { xSplit: 0, ySplit: dataStartRow + 1 };
+  }
+
+  // Header colors per sheet type
+  const hdrColors = {
+    sales:       '1F3864',
+    refunds:     '7A4F00',
+    chargebacks: '6B1220'
+  };
+  const hdrColor = hdrColors[type] || '1F3864';
+
+  // Strip colors per sheet type for alternate rows
+  const stripColors = {
+    sales:       'F5F7FA',
+    refunds:     'FFF8EC',
+    chargebacks: 'FFF5F7'
+  };
+  const stripColor = stripColors[type] || 'F5F7FA';
+
+  // Meta row fill
+  const metaColors = {
+    sales:       'E8F0FE',
+    refunds:     'FFF8EC',
+    chargebacks: 'FFF0F2'
+  };
+  const metaColor = metaColors[type] || 'E8F0FE';
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+
+      const isHdrRow  = (R === dataStartRow);
+      const isMetaRow = (optHeader && companyInfo && type === 'sales' && R === 0);
+      const isData    = R > dataStartRow;
+      const isEven    = (R - dataStartRow) % 2 === 0;
+      const isNumCol  = C >= 6 && C <= 10;
+
+      let bgColor = 'FFFFFF';
+      if (isMetaRow)                        bgColor = metaColor;
+      else if (isHdrRow)                    bgColor = hdrColor;
+      else if (optStripe && isData && isEven) bgColor = stripColor;
+
+      ws[addr].s = {
+        font: {
+          name: 'Arial',
+          sz: isHdrRow ? 10 : 9,
+          bold: isHdrRow || isMetaRow,
+          color: { rgb: isHdrRow ? 'FFFFFF' : '1a1a2e' }
+        },
+        fill: { patternType: 'solid', fgColor: { rgb: bgColor } },
+        alignment: {
+          horizontal: isMetaRow ? 'left' : isHdrRow ? 'center' : isNumCol ? 'right' : 'center',
+          vertical: 'center',
+          wrapText: isMetaRow
+        },
+        border: {
+          left:   { style: 'thin', color: { rgb: 'DDDDDD' } },
+          right:  { style: 'thin', color: { rgb: 'DDDDDD' } },
+          top:    { style: 'thin', color: { rgb: 'DDDDDD' } },
+          bottom: { style: 'thin', color: { rgb: 'DDDDDD' } }
+        }
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+}
+
+// ─── Build Summary sheet ──────────────────────────────────────
+function buildSummarySheet(wb, summaryRows, companyInfo, optHeader) {
+  const wsData = [];
+  let dataStartRow = 0;
+
+  if (optHeader && companyInfo) {
+    wsData.push([companyInfo]);
+    wsData.push(['']);
+    dataStartRow = 2;
+  }
+
+  // Header
+  wsData.push(['Description', 'Value']);
+
+  // Data
+  for (const [label, value] of summaryRows) {
+    wsData.push([label, value]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  if (optHeader && companyInfo) {
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+    ws['!rows'] = [];
+    ws['!rows'][0] = { hpx: 80 };
+  }
+
+  ws['!cols'] = [{ wch: 52 }, { wch: 20 }];
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  const thin = { style: 'thin', color: { rgb: 'DDDDDD' } };
+
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+
+      const isHdrRow  = R === dataStartRow;
+      const isMetaRow = (optHeader && companyInfo && R === 0);
+      const isData    = R > dataStartRow;
+      const isEven    = (R - dataStartRow) % 2 === 0;
+      const isValCol  = C === 1;
+
+      // Highlight NET PAYABLE row
+      const cellVal   = (ws[addr].v || '').toString().toUpperCase();
+      const isNetRow  = cellVal.includes('NET PAYABLE');
+
+      let bgColor = 'FFFFFF';
+      if (isMetaRow)                        bgColor = 'EBF5FB';
+      else if (isHdrRow)                    bgColor = '1B4F72';
+      else if (isNetRow)                    bgColor = 'D6EAF8';
+      else if (isData && isEven)            bgColor = 'F4F6F7';
+
+      ws[addr].s = {
+        font: {
+          name: 'Arial', sz: isHdrRow ? 10 : 9,
+          bold: isHdrRow || isMetaRow || isNetRow,
+          color: { rgb: isHdrRow ? 'FFFFFF' : '1a1a2e' }
+        },
+        fill: { patternType: 'solid', fgColor: { rgb: bgColor } },
+        alignment: {
+          horizontal: isMetaRow ? 'left' : isValCol && !isHdrRow ? 'right' : isHdrRow ? 'center' : 'left',
+          vertical: 'center',
+          wrapText: isMetaRow
+        },
+        border: { left: { style:'thin', color:{rgb:'DDDDDD'} }, right: { style:'thin', color:{rgb:'DDDDDD'} },
+                  top:  { style:'thin', color:{rgb:'DDDDDD'} }, bottom:{ style:'thin', color:{rgb:'DDDDDD'} } }
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+}
+
+// ─── Parse summary/grand total lines ──────────────────────────
+function parseSummaryLine(text) {
+  // Match lines like "GRAND TOTAL OF POS TRANSACTIONS : 02833"
+  // or "NET PAYABLE / RECEIVABLE 433304.24"
+  // or "VAT ON VISA INSTALLMENT FEE: 0.00"
+  const m1 = text.match(/^([A-Z][A-Z\s\/()]+?)\s*:\s*([-\d,.]+)$/i);
+  if (m1) return [m1[1].trim(), m1[2].trim()];
+
+  // "NET PAYABLE / RECEIVABLE 433304.24" (no colon)
+  const m2 = text.match(/^(NET PAYABLE\s*\/\s*RECEIVABLE)\s+([-\d,.]+)$/i);
+  if (m2) return [m2[1].trim(), m2[2].trim()];
+
+  return null;
+}
+downloadBtn.addEventListener('click', () => {
+  if (!workbookBlob) return;
+  const url = URL.createObjectURL(workbookBlob);
+  const a = document.createElement('a');
+  a.href = url; a.download = outputFilename; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ─── PDF text parsing ─────────────────────────────────────────
+function groupIntoLines(items) {
+  if (!items.length) return [];
+  const sorted = [...items].sort((a, b) => {
+    const dy = b.transform[5] - a.transform[5];
+    return Math.abs(dy) > 3 ? dy : a.transform[4] - b.transform[4];
+  });
+  const lines = [];
+  let cur = [], curY = null;
+  for (const item of sorted) {
+    const y = item.transform[5];
+    if (curY === null || Math.abs(y - curY) > 3) {
+      if (cur.length) lines.push(cur);
+      cur = [item]; curY = y;
+    } else {
+      cur.push(item);
+    }
+  }
+  if (cur.length) lines.push(cur);
+  return lines;
+}
+
+function lineText(line) {
+  return line.map(i => i.str).join(' ').trim();
+}
+
+const FOOTER_MARKERS = ['Page ', 'Contact Us', 'Network International', 'MerchantHD@network', 'Central Bank'];
+
+function isFooter(text) {
+  return FOOTER_MARKERS.some(m => text.includes(m));
+}
+
+function isColHeader(text) {
+  const u = text.toUpperCase();
+  return ['ACQ_REF_NBR', 'TRXN DESP', 'DTOF', 'TRMNL'].some(k => u.includes(k));
+}
+
+function isDataRow(text) {
+  // Starts with date like 17/02 or 13/11 — or chargeback rows with * in TRMNL column
+  return /^\d{2}\/\d{2}/.test(text.trim());
+}
+
+function dedupeLineItems(lineItems) {
+  // Fix rows where each token appears twice at nearly the same X position
+  // (doubled-font encoding at the row level, not the page level)
+  const sorted = [...lineItems]
+    .filter(i => i.str.trim())
+    .sort((a, b) => a.transform[4] - b.transform[4]);
+  if (sorted.length < 2) return sorted;
+
+  // Check if roughly half the tokens are duplicates (same str, x within 5px)
+  let dupCount = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].str.trim() === sorted[i+1].str.trim() &&
+        Math.abs(sorted[i].transform[4] - sorted[i+1].transform[4]) < 5) {
+      dupCount++;
+    }
+  }
+  // If >30% of consecutive pairs are duplicates, deduplicate the whole line
+  if (dupCount / (sorted.length - 1) >= 0.30) {
+    const deduped = [];
+    for (let i = 0; i < sorted.length; i++) {
+      const cur = sorted[i];
+      const next = sorted[i + 1];
+      if (next &&
+          cur.str.trim() === next.str.trim() &&
+          Math.abs(cur.transform[4] - next.transform[4]) < 5) {
+        deduped.push(cur); // keep first, skip second
+        i++; // skip the duplicate
+      } else {
+        deduped.push(cur);
+      }
+    }
+    return deduped;
+  }
+  return sorted;
+}
+
+function parseDataRow(lineItems, fullText) {
+  // De-duplicate tokens first (handles per-row doubled-font encoding)
+  const deduped = dedupeLineItems(lineItems);
+  const dedupedText = deduped.map(i => i.str.trim()).filter(Boolean).join(' ');
+
+  // Sort tokens by x
+  const tokens = deduped
+    .filter(i => i.str.trim())
+    .map(i => ({ str: i.str.trim(), x: i.transform[4] }));
+
+  if (!tokens.length) return null;
+
+  // Use de-duplicated text for regex matching
+  const textToParse = dedupedText || fullText;
+
+  // Try regex parse first (handles the clean sales/refund format)
+  // DATE  TERMINAL  CARD  TYPE  ACQ_REF  AUTH  TRAN  MSF  FEE  VAT  NET  DESP
+  const m = textToParse.match(
+    /^(\d{2}\/\d{2})\s+(\S+)\s+(\S+)\s+(SALES|REFUNDS?|CHARGEBACK_CR|CHARGEBACK_DR|VOID)\s+(\S+)\s+(\S+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\S+)$/i
+  );
+  if (m) {
+    return [m[1],m[2],m[3],m[4],m[5],m[6],m[7],m[8],m[9],m[10],m[11],m[12]];
+  }
+
+  // Fallback: positional column assignment
+  const xs = tokens.map(t => t.x);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const span = maxX - minX || 1;
+  const boundaries = [0, 0.07, 0.13, 0.22, 0.30, 0.52, 0.62, 0.72, 0.79, 0.84, 0.89, 0.95, 1.01];
+  const row = new Array(12).fill('');
+  for (const tok of tokens) {
+    const nx = (tok.x - minX) / span;
+    for (let c = 0; c < 12; c++) {
+      if (nx >= boundaries[c] && nx < boundaries[c + 1]) {
+        row[c] = row[c] ? row[c] + ' ' + tok.str : tok.str;
+        break;
+      }
+    }
+  }
+  if (!row[0] || !/^\d{2}\/\d{2}/.test(row[0])) return null;
+  return row;
+}
+
+// ─── UI helpers ───────────────────────────────────────────────
+function setProgress(pct, label) {
+  progressBar.style.width = pct + '%';
+  progressPct.textContent = pct + '%';
+  if (label) progressLabel.textContent = label;
+}
+
+function addLog(text, type = '') {
+  const prev = progressLog.querySelector('.log-entry.active');
+  if (prev) prev.classList.replace('active', 'done');
+  const el = document.createElement('div');
+  el.className = 'log-entry ' + type;
+  el.innerHTML = `<div class="log-dot"></div><span>${text}</span>`;
+  progressLog.appendChild(el);
+  progressLog.scrollTop = progressLog.scrollHeight;
+}
+
+function showError(msg) {
+  errorPanel.textContent = '⚠ ' + msg;
+  errorPanel.classList.add('show');
+  progressSec.classList.remove('show');
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+</script>
+</body>
+</html>
